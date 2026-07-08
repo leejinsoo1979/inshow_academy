@@ -51,9 +51,11 @@ function asList(value: string | string[] | undefined) {
 export function ApplicationFormPanel({
   className = "",
   onSubmitted,
+  variant = "card",
 }: {
   className?: string
   onSubmitted?: (name: string) => void
+  variant?: "card" | "bare"
 }) {
   const [schema, setSchema] = useState<ApplicationFormSchema>(defaultApplicationFormSchema)
   const [errorMessage, setErrorMessage] = useState("")
@@ -108,8 +110,13 @@ export function ApplicationFormPanel({
     form.reset()
   }
 
+  const formShellClass =
+    variant === "bare"
+      ? className
+      : `rounded-[8px] border border-foreground/10 bg-background/[0.78] p-5 shadow-[0_24px_90px_rgba(0,0,0,0.08)] backdrop-blur-xl md:p-7 ${className}`
+
   return (
-    <form onSubmit={handleSubmit} className={`rounded-[8px] border border-foreground/10 bg-background/[0.78] p-5 shadow-[0_24px_90px_rgba(0,0,0,0.08)] backdrop-blur-xl md:p-7 ${className}`}>
+    <form onSubmit={handleSubmit} className={formShellClass}>
       <div className="mb-6 border-b border-foreground/10 pb-5">
         <h2 className="text-xl font-medium tracking-tight">신청서 작성</h2>
         <p className="mt-1 text-sm text-foreground/50">제출 내용은 관리자 페이지에서 확인됩니다.</p>
