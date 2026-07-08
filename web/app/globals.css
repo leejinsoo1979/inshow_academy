@@ -143,3 +143,65 @@
     backface-visibility: hidden;
   }
 }
+
+/* 로고 앞 회전 3D 큐브 심볼 (흑백) — 색은 currentColor로 테마(라이트/다크) 대응 */
+.cube-symbol {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  perspective: 200px;
+}
+
+.cube-symbol__cube {
+  position: relative;
+  width: 18px;
+  height: 18px;
+  transform-style: preserve-3d;
+  animation: cube-symbol-rotate 6s linear infinite;
+}
+
+.cube-symbol__face {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  background-color: transparent;
+  border: 1.5px solid currentColor;
+  box-sizing: border-box;
+}
+
+.cube-symbol__face1 {
+  transform: rotateY(0deg) translateZ(9px);
+}
+.cube-symbol__face2 {
+  transform: rotateX(90deg) translateZ(9px);
+}
+.cube-symbol__face3 {
+  transform: rotateY(90deg) translateZ(9px);
+}
+.cube-symbol__face4 {
+  transform: rotateY(180deg) translateZ(9px);
+}
+.cube-symbol__face5 {
+  transform: rotateX(-90deg) translateZ(9px);
+}
+.cube-symbol__face6 {
+  transform: rotateY(-90deg) translateZ(9px);
+}
+
+@keyframes cube-symbol-rotate {
+  from {
+    transform: rotateX(0deg) rotateY(0deg);
+  }
+  to {
+    transform: rotateX(360deg) rotateY(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cube-symbol__cube {
+    animation: none;
+    transform: rotateX(-20deg) rotateY(30deg);
+  }
+}

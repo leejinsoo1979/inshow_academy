@@ -8,7 +8,9 @@ interface MagneticButtonProps {
   className?: string
   variant?: "primary" | "secondary" | "ghost"
   size?: "default" | "lg"
-  onClick?: () => void
+  type?: "button" | "submit" | "reset"
+  disabled?: boolean
+  onClick?: React.MouseEventHandler<HTMLButtonElement>
 }
 
 export function MagneticButton({
@@ -16,6 +18,8 @@ export function MagneticButton({
   className = "",
   variant = "primary",
   size = "default",
+  type = "button",
+  disabled = false,
   onClick,
 }: MagneticButtonProps) {
   const ref = useRef<HTMLButtonElement>(null)
@@ -65,6 +69,8 @@ export function MagneticButton({
   return (
     <button
       ref={ref}
+      type={type}
+      disabled={disabled}
       onClick={onClick}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}

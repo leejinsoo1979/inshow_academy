@@ -5,12 +5,52 @@ import { ArrowLeft, KeyRound, Mail, Phone, UserRound } from "lucide-react"
 import { FormEvent, useState } from "react"
 import { GrainOverlay } from "@/components/grain-overlay"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { SIGNUP_SUBMISSIONS_KEY, createSubmissionId, type SignupSubmission } from "@/lib/admin-data"
+import { AUTH_USERS_KEY, type AuthUser } from "@/lib/auth"
+import { AuthLinks } from "@/components/auth-links"
 
 export default function SignupPage() {
   const [submitted, setSubmitted] = useState(false)
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    const formData = new FormData(event.currentTarget)
+
+    const submission: SignupSubmission = {
+      id: createSubmissionId(),
+      name: String(formData.get("name") ?? "").trim(),
+      company: String(formData.get("company") ?? "").trim(),
+      username: String(formData.get("username") ?? "").trim(),
+      email: String(formData.get("email") ?? "").trim(),
+      phone: String(formData.get("phone") ?? "").trim(),
+      course: "회원가입",
+      status: "승인 대기",
+      createdAt: new Date().toISOString(),
+    }
+
+    const saved = window.localStorage.getItem(SIGNUP_SUBMISSIONS_KEY)
+    const submissions: SignupSubmission[] = saved ? JSON.parse(saved) : []
+    window.localStorage.setItem(SIGNUP_SUBMISSIONS_KEY, JSON.stringify([submission, ...submissions]))
+
+    const user: AuthUser = {
+      id: submission.id,
+      username: submission.username,
+      password: String(formData.get("password") ?? ""),
+      name: submission.name,
+      company: submission.company,
+      email: submission.email,
+      phone: submission.phone,
+      role: "member",
+      createdAt: submission.createdAt,
+    }
+    const savedUsers = window.localStorage.getItem(AUTH_USERS_KEY)
+    const users: AuthUser[] = savedUsers ? JSON.parse(savedUsers) : []
+    window.localStorage.setItem(
+      AUTH_USERS_KEY,
+      JSON.stringify([user, ...users.filter(savedUser => savedUser.username !== user.username)])
+    )
+
+    event.currentTarget.reset()
     setSubmitted(true)
   }
 
@@ -23,7 +63,10 @@ export default function SignupPage() {
           <ArrowLeft className="h-4 w-4" />
           <span className="font-sans text-xl font-semibold tracking-tight">INSHOW ACADEMY</span>
         </Link>
-        <ThemeToggle />
+        <div className="flex items-center gap-3">
+          <ThemeToggle />
+          <AuthLinks />
+        </div>
       </nav>
 
       <section className="relative z-10 mx-auto grid min-h-screen w-full max-w-2xl items-center gap-10 px-6 py-28 md:px-12">

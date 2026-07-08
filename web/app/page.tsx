@@ -7,6 +7,7 @@ import { AboutSection } from "@/components/sections/about-section"
 import { ContactSection } from "@/components/sections/contact-section"
 import { MagneticButton } from "@/components/magnetic-button"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { AuthLinks } from "@/components/auth-links"
 import Link from "next/link"
 import { useRef, useEffect, useState } from "react"
 import dynamic from "next/dynamic"
@@ -18,9 +19,9 @@ const navItems = [
   { label: "홈", section: 0 },
   { label: "강의", section: 1 },
   { label: "커리큘럼", section: 2 },
-  { label: "수료업체", href: "/graduates" },
   { label: "소개", section: 3 },
   { label: "수강신청", section: 4 },
+  { label: "수료업체", href: "/graduates" },
 ]
 
 export default function Home() {
@@ -74,6 +75,15 @@ export default function Home() {
       setCurrentSection(index)
     }
   }
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const targetSection = Number(params.get("section"))
+
+    if (Number.isInteger(targetSection) && targetSection >= 0 && targetSection <= 4) {
+      window.setTimeout(() => scrollToSection(targetSection), 100)
+    }
+  }, [])
 
   useEffect(() => {
     const handleTouchStart = (e: TouchEvent) => {
@@ -238,12 +248,7 @@ export default function Home() {
 
         <div className="flex items-center gap-3">
           <ThemeToggle />
-          <Link
-            href="/signup"
-            className="relative overflow-hidden rounded-full border border-foreground/10 bg-foreground/5 px-6 py-2.5 text-sm font-medium text-foreground backdrop-blur-xl transition-all duration-300 ease-out hover:border-foreground/20 hover:bg-foreground/10"
-          >
-            회원가입
-          </Link>
+          <AuthLinks />
         </div>
       </nav>
 

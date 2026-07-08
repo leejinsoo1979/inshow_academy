@@ -1,80 +1,362 @@
-import type { ComponentType, SVGProps } from "react"
+"use client"
+
+import type { ComponentType, FormEvent, SVGProps } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import {
   ArrowLeft,
-  Bell,
   BookOpen,
   Building2,
   CalendarDays,
   CheckCircle2,
-  ChevronRight,
-  Clock3,
   CreditCard,
   Download,
+  ImageIcon,
   LayoutDashboard,
+  LogOut,
   Mail,
   MessageSquareText,
-  MoreHorizontal,
   Plus,
   Search,
   ShieldCheck,
+  Trash2,
   UserRound,
   UsersRound,
 } from "lucide-react"
 import { GrainOverlay } from "@/components/grain-overlay"
 import { ThemeToggle } from "@/components/theme-toggle"
+import {
+  COURSE_APPLICATIONS_KEY,
+  GRADUATE_COMPANIES_KEY,
+  SIGNUP_SUBMISSIONS_KEY,
+  createGraduateCompanyId,
+  createSubmissionId,
+  getMockGraduateFaceImage,
+  signupStatuses,
+  type CourseApplication,
+  type GraduateCompany,
+  type SignupStatus,
+  type SignupSubmission,
+} from "@/lib/admin-data"
+import { AUTH_SESSION_KEY, type AuthSession } from "@/lib/auth"
 
 type Icon = ComponentType<SVGProps<SVGSVGElement>>
 
-const navItems: { label: string; icon: Icon; active?: boolean; count?: string }[] = [
-  { label: "대시보드", icon: LayoutDashboard, active: true },
-  { label: "회원 관리", icon: UserRound, count: "128" },
-  { label: "수료업체", icon: Building2, count: "42" },
-  { label: "강의 운영", icon: CalendarDays },
-  { label: "결제 관리", icon: CreditCard, count: "17" },
-  { label: "문의함", icon: Mail, count: "5" },
-]
+const statusTone: Record<SignupStatus, string> = {
+  "승인 대기": "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+  "승인 완료": "border-cyan-500/25 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300",
+  "상담 필요": "border-rose-500/25 bg-rose-500/10 text-rose-700 dark:text-rose-300",
+  "결제 확인": "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+}
 
-const stats: { label: string; value: string; change: string; icon: Icon; tone: string }[] = [
-  { label: "신규 회원", value: "128", change: "+18.4%", icon: UsersRound, tone: "bg-cyan-500/[0.12] text-cyan-700 dark:text-cyan-300" },
-  { label: "수강 신청", value: "46", change: "+9.2%", icon: BookOpen, tone: "bg-emerald-500/[0.12] text-emerald-700 dark:text-emerald-300" },
-  { label: "결제 대기", value: "17", change: "-3건", icon: CreditCard, tone: "bg-amber-500/[0.14] text-amber-700 dark:text-amber-300" },
-  { label: "상담 문의", value: "31", change: "+12건", icon: MessageSquareText, tone: "bg-rose-500/[0.12] text-rose-700 dark:text-rose-300" },
-]
+function formatDate(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return "-"
 
-const applicants = [
-  { name: "김도윤", company: "무브먼트디자인", id: "doyun.k", course: "3D 설계 실전", status: "승인 대기", tone: "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300", time: "10분 전" },
-  { name: "박서연", company: "스튜디오 라움", id: "raum.sy", course: "견적 실무", status: "결제 확인", tone: "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300", time: "24분 전" },
-  { name: "이준호", company: "개인사업자", id: "junho.l", course: "현장 운영", status: "상담 필요", tone: "border-rose-500/25 bg-rose-500/10 text-rose-700 dark:text-rose-300", time: "42분 전" },
-  { name: "최민지", company: "인테리어랩", id: "minji.c", course: "시공 관리", status: "승인 완료", tone: "border-cyan-500/25 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300", time: "1시간 전" },
-  { name: "정하늘", company: "디자인스테이", id: "stay.j", course: "3D 설계 실전", status: "승인 대기", tone: "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300", time: "2시간 전" },
-]
+  return new Intl.DateTimeFormat("ko-KR", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date)
+}
 
-const schedule = [
-  { date: "07.10", title: "견적 실무 라이브", meta: "20:00 · Zoom", state: "준비중", progress: "72%" },
-  { date: "07.12", title: "현장 체크리스트", meta: "14:00 · 오프라인", state: "모집중", progress: "54%" },
-  { date: "07.15", title: "3D 설계 피드백", meta: "19:30 · 온라인", state: "확정", progress: "88%" },
-]
+function readSubmissions() {
+  try {
+    const saved = window.localStorage.getItem(SIGNUP_SUBMISSIONS_KEY)
+    return saved ? (JSON.parse(saved) as SignupSubmission[]) : []
+  } catch {
+    return []
+  }
+}
 
-const funnel = [
-  { label: "방문", value: 100 },
-  { label: "회원가입", value: 62 },
-  { label: "상담신청", value: 38 },
-  { label: "결제완료", value: 24 },
-]
+function readGraduateCompanies() {
+  try {
+    const saved = window.localStorage.getItem(GRADUATE_COMPANIES_KEY)
+    return saved ? (JSON.parse(saved) as GraduateCompany[]) : []
+  } catch {
+    return []
+  }
+}
 
-const tasks = [
-  "신규 회원 8명 승인 여부 확인",
-  "결제 대기자에게 안내 문자 발송",
-  "토요일 오프라인 강의 참석자 명단 확정",
-  "문의함 미답변 5건 처리",
-]
+function readCourseApplications() {
+  try {
+    const saved = window.localStorage.getItem(COURSE_APPLICATIONS_KEY)
+    return saved ? (JSON.parse(saved) as CourseApplication[]) : []
+  } catch {
+    return []
+  }
+}
+
+function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.addEventListener("load", () => resolve(String(reader.result ?? "")))
+    reader.addEventListener("error", () => reject(reader.error))
+    reader.readAsDataURL(file)
+  })
+}
 
 export default function AdminPage() {
+  const router = useRouter()
+  const [isReady, setIsReady] = useState(false)
+  const [isAuthorized, setIsAuthorized] = useState(false)
+  const [records, setRecords] = useState<SignupSubmission[]>([])
+  const [applications, setApplications] = useState<CourseApplication[]>([])
+  const [graduateCompanies, setGraduateCompanies] = useState<GraduateCompany[]>([])
+  const [query, setQuery] = useState("")
+
+  useEffect(() => {
+    let session: AuthSession | null = null
+
+    try {
+      const savedSession = window.localStorage.getItem(AUTH_SESSION_KEY)
+      session = savedSession ? (JSON.parse(savedSession) as AuthSession) : null
+    } catch {
+      session = null
+    }
+
+    if (session?.role !== "superadmin") {
+      router.replace("/login?next=/admin")
+      return
+    }
+
+    setRecords(readSubmissions())
+    setApplications(readCourseApplications())
+    setGraduateCompanies(readGraduateCompanies())
+    setIsAuthorized(true)
+    setIsReady(true)
+  }, [router])
+
+  useEffect(() => {
+    if (!isReady || !isAuthorized) return
+    window.localStorage.setItem(SIGNUP_SUBMISSIONS_KEY, JSON.stringify(records))
+  }, [records, isReady, isAuthorized])
+
+  useEffect(() => {
+    if (!isReady || !isAuthorized) return
+    window.localStorage.setItem(COURSE_APPLICATIONS_KEY, JSON.stringify(applications))
+  }, [applications, isReady, isAuthorized])
+
+  useEffect(() => {
+    if (!isReady || !isAuthorized) return
+    window.localStorage.setItem(GRADUATE_COMPANIES_KEY, JSON.stringify(graduateCompanies))
+  }, [graduateCompanies, isReady, isAuthorized])
+
+  const summary = useMemo(() => {
+    const pending = records.filter(record => record.status === "승인 대기").length
+    const approved = records.filter(record => record.status === "승인 완료").length
+    const paid = records.filter(record => record.status === "결제 확인").length
+    const needsConsult = records.filter(record => record.status === "상담 필요").length
+    const applicationPending = applications.filter(application => application.status === "승인 대기").length
+
+    return {
+      total: records.length + applications.length,
+      memberTotal: records.length,
+      applicationTotal: applications.length,
+      applicationPending,
+      pending,
+      approved,
+      paid,
+      needsConsult,
+    }
+  }, [applications, records])
+
+  const navItems: { label: string; icon: Icon; active?: boolean; count?: string }[] = [
+    { label: "대시보드", icon: LayoutDashboard, active: true },
+    { label: "회원 관리", icon: UserRound, count: String(summary.memberTotal) },
+    { label: "신청서", icon: BookOpen, count: String(summary.applicationTotal) },
+    { label: "수료업체", icon: Building2, count: String(graduateCompanies.length) },
+    { label: "강의 운영", icon: CalendarDays },
+    { label: "결제 관리", icon: CreditCard, count: String(summary.paid) },
+    { label: "문의함", icon: Mail, count: String(summary.needsConsult) },
+  ]
+
+  const stats: { label: string; value: string; icon: Icon; tone: string }[] = [
+    {
+      label: "전체 접수",
+      value: String(summary.total),
+      icon: UsersRound,
+      tone: "bg-cyan-500/[0.12] text-cyan-700 dark:text-cyan-300",
+    },
+    {
+      label: "과정 신청",
+      value: String(summary.applicationTotal),
+      icon: BookOpen,
+      tone: "bg-amber-500/[0.14] text-amber-700 dark:text-amber-300",
+    },
+    {
+      label: "결제 확인",
+      value: String(summary.paid),
+      icon: CreditCard,
+      tone: "bg-emerald-500/[0.12] text-emerald-700 dark:text-emerald-300",
+    },
+    {
+      label: "상담 필요",
+      value: String(summary.needsConsult),
+      icon: MessageSquareText,
+      tone: "bg-rose-500/[0.12] text-rose-700 dark:text-rose-300",
+    },
+  ]
+
+  const filteredRecords = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase()
+    if (!normalizedQuery) return records
+
+    return records.filter(record =>
+      [record.name, record.company, record.username, record.email, record.phone, record.status]
+        .join(" ")
+        .toLowerCase()
+        .includes(normalizedQuery)
+    )
+  }, [records, query])
+
+  const filteredApplications = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase()
+    if (!normalizedQuery) return applications
+
+    return applications.filter(application =>
+      [
+        application.name,
+        application.company,
+        application.phone,
+        application.email,
+        application.course,
+        application.preferredBatch,
+        application.attendanceType,
+        application.status,
+        application.interestedWorks.join(" "),
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(normalizedQuery)
+    )
+  }, [applications, query])
+
+  const progressItems = [
+    { label: "회원가입", value: summary.memberTotal },
+    { label: "신청서", value: summary.applicationTotal },
+    { label: "승인 대기", value: summary.pending },
+    { label: "상담 필요", value: summary.needsConsult },
+    { label: "완료", value: summary.approved + summary.paid },
+  ]
+
+  const updateStatus = (id: string, status: SignupStatus) => {
+    setRecords(prev => prev.map(record => (record.id === id ? { ...record, status } : record)))
+  }
+
+  const deleteRecord = (id: string) => {
+    setRecords(prev => prev.filter(record => record.id !== id))
+  }
+
+  const updateApplicationStatus = (id: string, status: SignupStatus) => {
+    setApplications(prev => prev.map(application => (application.id === id ? { ...application, status } : application)))
+  }
+
+  const deleteApplication = (id: string) => {
+    setApplications(prev => prev.filter(application => application.id !== id))
+  }
+
+  const deleteGraduateCompany = (id: string) => {
+    setGraduateCompanies(prev => prev.filter(company => company.id !== id))
+  }
+
+  const handleManualAdd = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const formData = new FormData(event.currentTarget)
+
+    const record: SignupSubmission = {
+      id: createSubmissionId(),
+      name: String(formData.get("name") ?? "").trim(),
+      company: String(formData.get("company") ?? "").trim(),
+      username: String(formData.get("username") ?? "").trim(),
+      email: String(formData.get("email") ?? "").trim(),
+      phone: String(formData.get("phone") ?? "").trim(),
+      course: "관리자 등록",
+      status: "승인 대기",
+      createdAt: new Date().toISOString(),
+    }
+
+    if (!record.name || !record.company || !record.username) return
+
+    setRecords(prev => [record, ...prev])
+    event.currentTarget.reset()
+  }
+
+  const handleGraduateAdd = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const form = event.currentTarget
+    const formData = new FormData(form)
+    const uploadedImage = formData.get("imageFile")
+    let imageSrc = String(formData.get("imageSrc") ?? "").trim()
+
+    if (uploadedImage instanceof File && uploadedImage.size > 0) {
+      imageSrc = await readFileAsDataUrl(uploadedImage)
+    }
+
+    const course = String(formData.get("course") ?? "").trim()
+    const company: GraduateCompany = {
+      id: createGraduateCompanyId(),
+      name: String(formData.get("name") ?? "").trim(),
+      area: String(formData.get("area") ?? "").trim() || "지역 미입력",
+      course,
+      year: String(formData.get("year") ?? "").trim() || String(new Date().getFullYear()),
+      status: String(formData.get("status") ?? "").trim() || "수료 인증",
+      imageSrc: imageSrc || getMockGraduateFaceImage(graduateCompanies.length),
+      description:
+        String(formData.get("description") ?? "").trim() ||
+        (course ? `${course} 과정을 수료한 인쇼아카데미 수료업체입니다.` : "인쇼아카데미 수료업체입니다."),
+      createdAt: new Date().toISOString(),
+    }
+
+    if (!company.name || !company.course) return
+
+    setGraduateCompanies(prev => [company, ...prev])
+    form.reset()
+  }
+
+  const exportCsv = () => {
+    const rows = [
+      ["이름", "회사명", "아이디", "이메일", "전화번호", "상태", "접수일"],
+      ...filteredRecords.map(record => [
+        record.name,
+        record.company,
+        record.username,
+        record.email,
+        record.phone,
+        record.status,
+        formatDate(record.createdAt),
+      ]),
+    ]
+
+    const csv = rows.map(row => row.map(cell => `"${String(cell).replaceAll('"', '""')}"`).join(",")).join("\n")
+    const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement("a")
+    anchor.href = url
+    anchor.download = `inshow-members-${new Date().toISOString().slice(0, 10)}.csv`
+    anchor.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const handleLogout = () => {
+    window.localStorage.removeItem(AUTH_SESSION_KEY)
+    router.replace("/login")
+  }
+
+  if (!isReady) {
+    return (
+      <main className="relative flex min-h-screen items-center justify-center bg-background text-foreground">
+        <GrainOverlay />
+        <p className="relative z-10 font-mono text-sm text-foreground/50">관리자 권한 확인 중</p>
+      </main>
+    )
+  }
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-background text-foreground">
       <GrainOverlay />
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(circle_at_top_left,rgba(6,182,212,0.18),transparent_32%),radial-gradient(circle_at_top_right,rgba(245,158,11,0.16),transparent_30%)]" />
 
       <div className="relative z-10 grid min-h-screen lg:grid-cols-[272px_1fr]">
         <aside className="hidden border-r border-foreground/10 bg-background/[0.82] px-5 py-6 backdrop-blur-xl lg:block">
@@ -113,39 +395,50 @@ export default function AdminPage() {
               운영 상태
             </div>
             <p className="text-sm leading-relaxed text-foreground/[0.58]">
-              오늘 강의 2건, 승인 대기 8건, 미확인 문의 5건이 있습니다.
+              승인 대기 {summary.pending}건, 상담 필요 {summary.needsConsult}건, 결제 확인 {summary.paid}건이 있습니다.
             </p>
-            <button className="mt-4 flex h-9 w-full items-center justify-center gap-2 rounded-[8px] bg-foreground text-sm font-medium text-background">
-              점검하기
-              <ChevronRight className="h-4 w-4" />
-            </button>
           </section>
         </aside>
 
         <section className="min-w-0 px-4 py-4 md:px-8 lg:px-10">
           <header className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-foreground/10 pb-5">
             <div>
-              <p className="font-mono text-xs uppercase tracking-[0.28em] text-foreground/[0.45]">Admin Console</p>
-              <h1 className="mt-2 text-3xl font-semibold tracking-tight md:text-4xl">운영 대시보드</h1>
+              <p className="font-mono text-xs uppercase tracking-[0.28em] text-foreground/[0.45]">Live Admin Console</p>
+              <h1 className="mt-2 text-3xl font-semibold tracking-tight md:text-4xl">회원 운영 관리</h1>
             </div>
 
             <div className="flex items-center gap-2 md:gap-3">
-              <label className="hidden h-10 min-w-[260px] items-center gap-2 rounded-[8px] border border-foreground/10 bg-background/[0.72] px-3 text-sm text-foreground/[0.45] backdrop-blur-xl md:flex">
+              <label className="hidden h-10 min-w-[280px] items-center gap-2 rounded-[8px] border border-foreground/10 bg-background/[0.72] px-3 text-sm text-foreground/[0.45] backdrop-blur-xl md:flex">
                 <Search className="h-4 w-4" />
                 <input
+                  value={query}
+                  onChange={event => setQuery(event.currentTarget.value)}
                   className="h-full w-full bg-transparent text-foreground outline-none placeholder:text-foreground/[0.38]"
-                  placeholder="회원, 강의, 문의 검색"
+                  placeholder="회원, 회사, 이메일 검색"
                 />
               </label>
-              <button className="flex h-10 w-10 items-center justify-center rounded-[8px] border border-foreground/10 bg-background/[0.72] backdrop-blur-xl transition-colors hover:bg-foreground/[0.06]">
-                <Bell className="h-4 w-4" />
+              <button
+                type="button"
+                onClick={exportCsv}
+                className="flex h-10 items-center gap-2 rounded-[8px] border border-foreground/10 bg-background/[0.72] px-3 text-sm text-foreground/70 backdrop-blur-xl transition-colors hover:bg-foreground/[0.06]"
+              >
+                <Download className="h-4 w-4" />
+                CSV
+              </button>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="flex h-10 items-center gap-2 rounded-[8px] border border-foreground/10 bg-background/[0.72] px-3 text-sm text-foreground/70 backdrop-blur-xl transition-colors hover:bg-foreground/[0.06]"
+              >
+                <LogOut className="h-4 w-4" />
+                로그아웃
               </button>
               <ThemeToggle />
             </div>
           </header>
 
           <div className="mb-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            {stats.map(({ label, value, change, icon: IconComponent, tone }) => (
+            {stats.map(({ label, value, icon: IconComponent, tone }) => (
               <section key={label} className="rounded-[8px] border border-foreground/10 bg-background/[0.74] p-5 shadow-[0_20px_60px_rgba(0,0,0,0.06)] backdrop-blur-xl">
                 <div className="mb-5 flex items-center justify-between">
                   <span className="text-sm text-foreground/[0.55]">{label}</span>
@@ -153,62 +446,132 @@ export default function AdminPage() {
                     <IconComponent className="h-4 w-4" />
                   </span>
                 </div>
-                <div className="flex items-end justify-between">
-                  <strong className="text-3xl font-semibold tracking-tight">{value}</strong>
-                  <span className="rounded-full border border-foreground/10 px-2.5 py-1 font-mono text-xs text-foreground/[0.55]">
-                    {change}
-                  </span>
-                </div>
+                <strong className="text-3xl font-semibold tracking-tight">{value}</strong>
               </section>
             ))}
           </div>
+
+          <section className="mb-6 rounded-[8px] border border-foreground/10 bg-background/[0.76] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.07)] backdrop-blur-xl">
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="font-medium">과정 신청서 접수</h2>
+                <p className="mt-1 text-sm text-foreground/50">기초 공정 초격차 3주 과정 신청서 제출 내역입니다.</p>
+              </div>
+              <span className="font-mono text-xs text-foreground/45">{filteredApplications.length} applications</span>
+            </div>
+
+            <div className="grid gap-3">
+              {filteredApplications.map(application => (
+                <article key={application.id} className="rounded-[8px] border border-foreground/[0.08] bg-foreground/[0.025] p-4">
+                  <div className="mb-4 flex flex-wrap items-start justify-between gap-3 border-b border-foreground/10 pb-4">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-lg font-medium">{application.name}</h3>
+                        <span className="rounded-full border border-foreground/10 px-2.5 py-1 font-mono text-[11px] text-foreground/50">
+                          {formatDate(application.createdAt)}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-sm text-foreground/55">{application.course}</p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={application.status}
+                        onChange={event => updateApplicationStatus(application.id, event.currentTarget.value as SignupStatus)}
+                        className={`rounded-full border px-3 py-1 text-xs outline-none ${statusTone[application.status]}`}
+                      >
+                        {signupStatuses.map(status => (
+                          <option key={status} value={status}>
+                            {status}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => deleteApplication(application.id)}
+                        className="flex h-8 w-8 items-center justify-center rounded-[8px] text-foreground/45 transition-colors hover:bg-rose-500/10 hover:text-rose-600"
+                        aria-label={`${application.name} 신청서 삭제`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 text-sm md:grid-cols-4">
+                    <InfoBlock label="연락처" value={application.phone} />
+                    <InfoBlock label="이메일" value={application.email || "-"} />
+                    <InfoBlock label="회사/상호" value={application.company || "-"} />
+                    <InfoBlock label="직무/경력" value={`${application.role || "-"} · ${application.experience || "-"}`} />
+                    <InfoBlock label="희망 기수" value={application.preferredBatch} />
+                    <InfoBlock label="수강 방식" value={application.attendanceType} />
+                    <InfoBlock label="관심 공정" value={application.interestedWorks.join(", ")} wide />
+                    <InfoBlock label="수강 목적" value={application.purpose || "-"} wide />
+                    <InfoBlock label="문의" value={application.question || "-"} wide />
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            {!filteredApplications.length && (
+              <div className="grid min-h-[180px] place-items-center rounded-[8px] border border-dashed border-foreground/10 px-5 py-10 text-center text-sm text-foreground/50">
+                접수된 과정 신청서가 없습니다. 공개 페이지의 신청서 작성 버튼으로 테스트할 수 있습니다.
+              </div>
+            )}
+          </section>
 
           <div className="grid gap-6 xl:grid-cols-[1.42fr_0.78fr]">
             <section className="overflow-hidden rounded-[8px] border border-foreground/10 bg-background/[0.76] shadow-[0_24px_80px_rgba(0,0,0,0.07)] backdrop-blur-xl">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-foreground/10 px-5 py-4">
                 <div>
-                  <h2 className="font-medium">최근 회원가입 및 수강신청</h2>
-                  <p className="mt-1 text-sm text-foreground/50">승인, 결제, 상담 상태를 한 번에 확인합니다.</p>
+                  <h2 className="font-medium">회원가입 접수 내역</h2>
+                  <p className="mt-1 text-sm text-foreground/50">회원가입 폼과 관리자 수동 등록 데이터가 표시됩니다.</p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button className="flex h-9 items-center gap-2 rounded-[8px] border border-foreground/10 px-3 text-sm text-foreground/70 transition-colors hover:bg-foreground/[0.06]">
-                    <Download className="h-4 w-4" />
-                    내보내기
-                  </button>
-                  <button className="flex h-9 items-center gap-2 rounded-[8px] bg-foreground px-3 text-sm font-medium text-background">
-                    <Plus className="h-4 w-4" />
-                    등록
-                  </button>
-                </div>
+                <span className="font-mono text-xs text-foreground/45">{filteredRecords.length} rows</span>
               </div>
 
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[760px] text-left text-sm">
+                <table className="w-full min-w-[920px] text-left text-sm">
                   <thead className="border-b border-foreground/10 text-xs uppercase tracking-wider text-foreground/[0.42]">
                     <tr>
                       <th className="px-5 py-3 font-medium">회원</th>
                       <th className="px-5 py-3 font-medium">아이디</th>
                       <th className="px-5 py-3 font-medium">회사명</th>
-                      <th className="px-5 py-3 font-medium">신청 강의</th>
+                      <th className="px-5 py-3 font-medium">이메일</th>
+                      <th className="px-5 py-3 font-medium">전화번호</th>
                       <th className="px-5 py-3 font-medium">상태</th>
                       <th className="px-5 py-3 font-medium">접수</th>
                       <th className="px-5 py-3 font-medium" />
                     </tr>
                   </thead>
                   <tbody>
-                    {applicants.map(row => (
-                      <tr key={`${row.name}-${row.course}`} className="border-b border-foreground/[0.06] transition-colors last:border-0 hover:bg-foreground/[0.035]">
-                        <td className="px-5 py-4 font-medium">{row.name}</td>
-                        <td className="px-5 py-4 font-mono text-xs text-foreground/50">{row.id}</td>
-                        <td className="px-5 py-4 text-foreground/[0.64]">{row.company}</td>
-                        <td className="px-5 py-4 text-foreground/[0.64]">{row.course}</td>
+                    {filteredRecords.map(record => (
+                      <tr key={record.id} className="border-b border-foreground/[0.06] transition-colors last:border-0 hover:bg-foreground/[0.035]">
+                        <td className="px-5 py-4 font-medium">{record.name}</td>
+                        <td className="px-5 py-4 font-mono text-xs text-foreground/50">{record.username}</td>
+                        <td className="px-5 py-4 text-foreground/[0.64]">{record.company}</td>
+                        <td className="px-5 py-4 text-foreground/[0.64]">{record.email || "-"}</td>
+                        <td className="px-5 py-4 text-foreground/[0.64]">{record.phone || "-"}</td>
                         <td className="px-5 py-4">
-                          <span className={`rounded-full border px-3 py-1 text-xs ${row.tone}`}>{row.status}</span>
+                          <select
+                            value={record.status}
+                            onChange={event => updateStatus(record.id, event.currentTarget.value as SignupStatus)}
+                            className={`rounded-full border px-3 py-1 text-xs outline-none ${statusTone[record.status]}`}
+                          >
+                            {signupStatuses.map(status => (
+                              <option key={status} value={status}>
+                                {status}
+                              </option>
+                            ))}
+                          </select>
                         </td>
-                        <td className="px-5 py-4 text-foreground/[0.45]">{row.time}</td>
+                        <td className="px-5 py-4 text-foreground/[0.45]">{formatDate(record.createdAt)}</td>
                         <td className="px-5 py-4">
-                          <button className="flex h-8 w-8 items-center justify-center rounded-[8px] text-foreground/[0.45] transition-colors hover:bg-foreground/[0.08] hover:text-foreground">
-                            <MoreHorizontal className="h-4 w-4" />
+                          <button
+                            type="button"
+                            onClick={() => deleteRecord(record.id)}
+                            className="flex h-8 w-8 items-center justify-center rounded-[8px] text-foreground/45 transition-colors hover:bg-rose-500/10 hover:text-rose-600"
+                          >
+                            <Trash2 className="h-4 w-4" />
                           </button>
                         </td>
                       </tr>
@@ -216,78 +579,165 @@ export default function AdminPage() {
                   </tbody>
                 </table>
               </div>
+
+              {!filteredRecords.length && (
+                <div className="px-5 py-12 text-center text-sm text-foreground/50">
+                  접수된 회원 데이터가 없습니다. 회원가입 페이지에서 신청하거나 관리자 등록을 사용하세요.
+                </div>
+              )}
             </section>
 
             <section className="rounded-[8px] border border-foreground/10 bg-background/[0.76] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.07)] backdrop-blur-xl">
-              <div className="mb-5 flex items-center justify-between">
-                <div>
-                  <h2 className="font-medium">전환 흐름</h2>
-                  <p className="mt-1 text-sm text-foreground/50">이번 주 기준</p>
+              <h2 className="mb-1 font-medium">관리자 등록</h2>
+              <p className="mb-5 text-sm text-foreground/50">전화나 현장 접수 회원을 바로 추가합니다.</p>
+
+              <form onSubmit={handleManualAdd} className="grid gap-3">
+                <input name="name" required placeholder="이름" className="h-10 rounded-[8px] border border-foreground/10 bg-transparent px-3 text-sm outline-none placeholder:text-foreground/35" />
+                <input name="company" required placeholder="회사명" className="h-10 rounded-[8px] border border-foreground/10 bg-transparent px-3 text-sm outline-none placeholder:text-foreground/35" />
+                <input name="username" required placeholder="아이디" className="h-10 rounded-[8px] border border-foreground/10 bg-transparent px-3 text-sm outline-none placeholder:text-foreground/35" />
+                <input name="email" type="email" placeholder="이메일" className="h-10 rounded-[8px] border border-foreground/10 bg-transparent px-3 text-sm outline-none placeholder:text-foreground/35" />
+                <input name="phone" placeholder="전화번호" className="h-10 rounded-[8px] border border-foreground/10 bg-transparent px-3 text-sm outline-none placeholder:text-foreground/35" />
+                <button type="submit" className="mt-2 flex h-10 items-center justify-center gap-2 rounded-[8px] bg-foreground text-sm font-medium text-background">
+                  <Plus className="h-4 w-4" />
+                  회원 등록
+                </button>
+              </form>
+
+              <div className="mt-6 border-t border-foreground/10 pt-5">
+                <h3 className="mb-4 text-sm font-medium">운영 흐름</h3>
+                <div className="grid gap-4">
+                  {progressItems.map(item => {
+                    const width = summary.total ? Math.round((item.value / summary.total) * 100) : 0
+                    return (
+                      <div key={item.label}>
+                        <div className="mb-2 flex items-center justify-between text-sm">
+                          <span className="text-foreground/[0.64]">{item.label}</span>
+                          <span className="font-mono text-foreground/50">{item.value}</span>
+                        </div>
+                        <div className="h-2 overflow-hidden rounded-full bg-foreground/10">
+                          <div className="h-full rounded-full bg-foreground" style={{ width: `${width}%` }} />
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
-                <Clock3 className="h-4 w-4 text-foreground/[0.45]" />
-              </div>
-              <div className="grid gap-4">
-                {funnel.map(item => (
-                  <div key={item.label}>
-                    <div className="mb-2 flex items-center justify-between text-sm">
-                      <span className="text-foreground/[0.64]">{item.label}</span>
-                      <span className="font-mono text-foreground/50">{item.value}%</span>
-                    </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-foreground/10">
-                      <div className="h-full rounded-full bg-foreground" style={{ width: `${item.value}%` }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-6 rounded-[8px] border border-foreground/10 bg-foreground/[0.035] p-4">
-                <p className="font-mono text-xs uppercase tracking-widest text-foreground/[0.45]">Conversion Note</p>
-                <p className="mt-2 text-sm leading-relaxed text-foreground/[0.62]">
-                  상담 신청 대비 결제 완료율이 63%입니다. 결제 대기자 안내를 먼저 처리하세요.
-                </p>
               </div>
             </section>
           </div>
 
-          <div className="mt-6 grid gap-6 xl:grid-cols-[0.94fr_1.06fr]">
-            <section className="rounded-[8px] border border-foreground/10 bg-background/[0.76] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.06)] backdrop-blur-xl">
-              <div className="mb-5 flex items-center justify-between">
-                <h2 className="font-medium">다가오는 강의</h2>
-                <CalendarDays className="h-4 w-4 text-foreground/[0.45]" />
+          <section className="mt-6 rounded-[8px] border border-foreground/10 bg-background/[0.76] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.07)] backdrop-blur-xl">
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="font-medium">수료업체 관리</h2>
+                <p className="mt-1 text-sm text-foreground/50">업체 정보와 사람 얼굴 목업 이미지를 공개 페이지에 표시합니다.</p>
               </div>
-              <div className="grid gap-4">
-                {schedule.map(item => (
-                  <div key={item.title} className="grid grid-cols-[64px_1fr_auto] items-center gap-4 border-b border-foreground/[0.06] pb-4 last:border-0 last:pb-0">
-                    <span className="font-mono text-sm text-foreground/50">{item.date}</span>
-                    <span>
-                      <strong className="block text-sm font-medium">{item.title}</strong>
-                      <span className="text-xs text-foreground/50">{item.meta}</span>
-                      <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-foreground/10">
-                        <span className="block h-full rounded-full bg-foreground" style={{ width: item.progress }} />
-                      </span>
-                    </span>
-                    <span className="rounded-full border border-foreground/10 px-2.5 py-1 text-xs text-foreground/[0.55]">{item.state}</span>
-                  </div>
-                ))}
-              </div>
-            </section>
+              <span className="font-mono text-xs text-foreground/45">{graduateCompanies.length} saved</span>
+            </div>
 
-            <section className="rounded-[8px] border border-foreground/10 bg-background/[0.76] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.06)] backdrop-blur-xl">
-              <div className="mb-5 flex items-center justify-between">
-                <h2 className="font-medium">오늘 처리할 일</h2>
-                <CheckCircle2 className="h-4 w-4 text-foreground/[0.45]" />
+            <div className="grid gap-5 xl:grid-cols-[0.82fr_1.18fr]">
+              <form onSubmit={handleGraduateAdd} className="grid gap-3 rounded-[8px] border border-foreground/[0.08] bg-foreground/[0.025] p-4">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <ImageIcon className="h-4 w-4" />
+                  수료업체 등록
+                </div>
+                <input name="name" required placeholder="업체명" className="h-10 rounded-[8px] border border-foreground/10 bg-transparent px-3 text-sm outline-none placeholder:text-foreground/35" />
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <input name="area" placeholder="지역 예: 서울 송파" className="h-10 rounded-[8px] border border-foreground/10 bg-transparent px-3 text-sm outline-none placeholder:text-foreground/35" />
+                  <input name="year" placeholder="수료 연도 예: 2026" className="h-10 rounded-[8px] border border-foreground/10 bg-transparent px-3 text-sm outline-none placeholder:text-foreground/35" />
+                </div>
+                <input name="course" required placeholder="수료 과정" className="h-10 rounded-[8px] border border-foreground/10 bg-transparent px-3 text-sm outline-none placeholder:text-foreground/35" />
+                <input name="status" placeholder="상태 예: 수료 인증" className="h-10 rounded-[8px] border border-foreground/10 bg-transparent px-3 text-sm outline-none placeholder:text-foreground/35" />
+                <textarea
+                  name="description"
+                  rows={3}
+                  placeholder="업체 소개 문구"
+                  className="resize-none rounded-[8px] border border-foreground/10 bg-transparent px-3 py-2 text-sm outline-none placeholder:text-foreground/35"
+                />
+                <input name="imageSrc" placeholder="이미지 URL, 비우면 얼굴 목업 자동 적용" className="h-10 rounded-[8px] border border-foreground/10 bg-transparent px-3 text-sm outline-none placeholder:text-foreground/35" />
+                <label className="grid min-h-16 cursor-pointer place-items-center rounded-[8px] border border-dashed border-foreground/15 px-3 py-3 text-center text-sm text-foreground/50 transition-colors hover:border-foreground/30 hover:text-foreground/70">
+                  <input name="imageFile" type="file" accept="image/*" className="sr-only" />
+                  이미지 파일 선택, 비우면 얼굴 목업 사용
+                </label>
+                <button type="submit" className="mt-1 flex h-10 items-center justify-center gap-2 rounded-[8px] bg-foreground text-sm font-medium text-background">
+                  <Plus className="h-4 w-4" />
+                  수료업체 등록
+                </button>
+              </form>
+
+              <div className="overflow-hidden rounded-[8px] border border-foreground/[0.08]">
+                <div className="hidden grid-cols-[1.05fr_0.7fr_0.85fr_0.45fr_44px] border-b border-foreground/10 px-4 py-3 font-mono text-xs text-foreground/45 md:grid">
+                  <span>업체</span>
+                  <span>지역</span>
+                  <span>과정</span>
+                  <span>연도</span>
+                  <span />
+                </div>
+                <div className="max-h-[520px] overflow-y-auto">
+                  {graduateCompanies.map(company => (
+                    <div
+                      key={company.id}
+                      className="grid gap-3 border-b border-foreground/[0.06] px-4 py-4 text-sm last:border-0 md:grid-cols-[1.05fr_0.7fr_0.85fr_0.45fr_44px] md:items-center"
+                    >
+                      <div className="flex min-w-0 items-center gap-3">
+                        <img src={company.imageSrc} alt={`${company.name} 이미지`} className="h-12 w-12 shrink-0 rounded-[8px] object-cover" />
+                        <div className="min-w-0">
+                          <strong className="block truncate font-medium">{company.name}</strong>
+                          <span className="block truncate text-xs text-foreground/45">{company.status}</span>
+                        </div>
+                      </div>
+                      <span className="text-foreground/60">{company.area}</span>
+                      <span className="text-foreground/60">{company.course}</span>
+                      <span className="font-mono text-foreground/50">{company.year}</span>
+                      <button
+                        type="button"
+                        onClick={() => deleteGraduateCompany(company.id)}
+                        className="flex h-9 w-9 items-center justify-center rounded-[8px] text-foreground/45 transition-colors hover:bg-rose-500/10 hover:text-rose-600"
+                        aria-label={`${company.name} 삭제`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                {!graduateCompanies.length && (
+                  <div className="grid min-h-[220px] place-items-center px-5 py-12 text-center text-sm text-foreground/50">
+                    아직 등록한 수료업체가 없습니다. 왼쪽 등록 폼에서 업체 정보를 추가하면 얼굴 목업이 자동 적용됩니다.
+                  </div>
+                )}
               </div>
-              <div className="grid gap-2 text-sm text-foreground/70">
-                {tasks.map(task => (
-                  <label key={task} className="flex min-h-11 items-center gap-3 rounded-[8px] border border-foreground/[0.08] bg-foreground/[0.025] px-3 transition-colors hover:bg-foreground/[0.055]">
-                    <input type="checkbox" className="h-4 w-4 accent-foreground" />
-                    <span>{task}</span>
-                  </label>
-                ))}
-              </div>
-            </section>
-          </div>
+            </div>
+          </section>
+
+          <section className="mt-6 rounded-[8px] border border-foreground/10 bg-background/[0.76] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.06)] backdrop-blur-xl">
+            <div className="mb-5 flex items-center justify-between">
+              <h2 className="font-medium">오늘 처리할 일</h2>
+              <CheckCircle2 className="h-4 w-4 text-foreground/[0.45]" />
+            </div>
+            <div className="grid gap-2 text-sm text-foreground/70 md:grid-cols-3">
+              {[
+                `승인 대기 ${summary.pending}건 확인`,
+                `상담 필요 ${summary.needsConsult}건 연락`,
+                `결제 확인 ${summary.paid}건 수강 안내`,
+              ].map(task => (
+                <label key={task} className="flex min-h-11 items-center gap-3 rounded-[8px] border border-foreground/[0.08] bg-foreground/[0.025] px-3 transition-colors hover:bg-foreground/[0.055]">
+                  <input type="checkbox" className="h-4 w-4 accent-foreground" />
+                  <span>{task}</span>
+                </label>
+              ))}
+            </div>
+          </section>
         </section>
       </div>
     </main>
+  )
+}
+
+function InfoBlock({ label, value, wide = false }: { label: string; value: string; wide?: boolean }) {
+  return (
+    <div className={wide ? "md:col-span-2" : undefined}>
+      <p className="mb-1 font-mono text-[11px] uppercase tracking-wider text-foreground/38">{label}</p>
+      <p className="whitespace-pre-wrap leading-relaxed text-foreground/68">{value}</p>
+    </div>
   )
 }

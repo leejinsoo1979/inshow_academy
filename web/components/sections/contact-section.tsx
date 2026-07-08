@@ -4,8 +4,10 @@ import { Mail, MapPin } from "lucide-react"
 import { useReveal } from "@/hooks/use-reveal"
 import { useState, type FormEvent } from "react"
 import { MagneticButton } from "@/components/magnetic-button"
+import { useRouter } from "next/navigation"
 
 export function ContactSection() {
+  const router = useRouter()
   const { ref, isVisible } = useReveal(0.3)
   const [formData, setFormData] = useState({ name: "", email: "", message: "" })
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -163,12 +165,14 @@ export function ContactSection() {
                 style={{ transitionDelay: "650ms" }}
               >
                 <MagneticButton
+                  type="button"
                   variant="primary"
                   size="lg"
                   className="w-full disabled:opacity-50"
-                  onClick={isSubmitting ? undefined : undefined}
+                  disabled={isSubmitting}
+                  onClick={() => router.push("/apply")}
                 >
-                  {isSubmitting ? "전송 중..." : "신청서 보내기"}
+                  {isSubmitting ? "작성 중..." : "신청서 작성"}
                 </MagneticButton>
                 {submitSuccess && (
                   <p className="mt-3 text-center font-mono text-sm text-foreground/80">신청이 접수되었습니다. 곧 연락드릴게요!</p>
