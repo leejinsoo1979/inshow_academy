@@ -14,6 +14,15 @@ import dynamic from "next/dynamic"
 // 3D lanyard (react-three-fiber) — client-only, no SSR
 const Lanyard = dynamic(() => import("@/components/lanyard"), { ssr: false })
 
+const navItems = [
+  { label: "홈", section: 0 },
+  { label: "강의", section: 1 },
+  { label: "커리큘럼", section: 2 },
+  { label: "수료업체", href: "/graduates" },
+  { label: "소개", section: 3 },
+  { label: "수강신청", section: 4 },
+]
+
 export default function Home() {
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const [currentSection, setCurrentSection] = useState(0)
@@ -198,22 +207,33 @@ export default function Home() {
         </button>
 
         <div className="hidden items-center gap-8 md:flex">
-          {["홈", "강의", "커리큘럼", "소개", "수강신청"].map((item, index) => (
-            <button
-              key={item}
-              onClick={() => scrollToSection(index)}
-              className={`group relative font-sans text-sm font-medium transition-colors ${
-                currentSection === index ? "text-foreground" : "text-foreground/80 hover:text-foreground"
-              }`}
-            >
-              {item}
-              <span
-                className={`absolute -bottom-1 left-0 h-px bg-foreground transition-all duration-300 ${
-                  currentSection === index ? "w-full" : "w-0 group-hover:w-full"
+          {navItems.map(item =>
+            "href" in item ? (
+              <Link
+                key={item.label}
+                href={item.href}
+                className="group relative font-sans text-sm font-medium text-foreground/80 transition-colors hover:text-foreground"
+              >
+                {item.label}
+                <span className="absolute -bottom-1 left-0 h-px w-0 bg-foreground transition-all duration-300 group-hover:w-full" />
+              </Link>
+            ) : (
+              <button
+                key={item.label}
+                onClick={() => scrollToSection(item.section)}
+                className={`group relative font-sans text-sm font-medium transition-colors ${
+                  currentSection === item.section ? "text-foreground" : "text-foreground/80 hover:text-foreground"
                 }`}
-              />
-            </button>
-          ))}
+              >
+                {item.label}
+                <span
+                  className={`absolute -bottom-1 left-0 h-px bg-foreground transition-all duration-300 ${
+                    currentSection === item.section ? "w-full" : "w-0 group-hover:w-full"
+                  }`}
+                />
+              </button>
+            )
+          )}
         </div>
 
         <div className="flex items-center gap-3">
