@@ -222,37 +222,28 @@ export default function Home() {
           onClick={() => scrollToSection(0)}
           className="flex items-center gap-2 transition-transform hover:scale-105"
         >
-          <span className="font-sans text-xl font-semibold tracking-tight text-foreground">INSHOW ACADEMY</span>
+          <span className="font-sans text-xl font-semibold tracking-tight text-foreground">INSHOW <span className="font-normal">ACADEMY</span></span>
         </button>
 
-        <div className="hidden items-center gap-8 md:flex">
-          {navItems.map(item =>
-            "href" in item ? (
-              <Link
-                key={item.label}
-                href={item.href}
-                className="group relative font-sans text-sm font-medium text-foreground/80 transition-colors hover:text-foreground"
-              >
+        <div className="hidden items-center gap-1 rounded-full border border-foreground/10 bg-background/45 p-1.5 shadow-[0_12px_40px_rgba(0,0,0,0.08)] backdrop-blur-xl md:flex">
+          {navItems.map(item => {
+            const isActive = !("href" in item) && currentSection === item.section
+            const itemClass = `rounded-full px-4 py-2 font-sans text-sm font-medium transition-all duration-300 ease-out ${
+              isActive
+                ? "bg-foreground text-background shadow-[0_8px_24px_rgba(0,0,0,0.18)]"
+                : "text-foreground/65 hover:bg-foreground/[0.06] hover:text-foreground"
+            }`
+
+            return "href" in item ? (
+              <Link key={item.label} href={item.href} className={itemClass}>
                 {item.label}
-                <span className="absolute -bottom-1 left-0 h-px w-0 bg-foreground transition-all duration-300 group-hover:w-full" />
               </Link>
             ) : (
-              <button
-                key={item.label}
-                onClick={() => scrollToSection(item.section)}
-                className={`group relative font-sans text-sm font-medium transition-colors ${
-                  currentSection === item.section ? "text-foreground" : "text-foreground/80 hover:text-foreground"
-                }`}
-              >
+              <button key={item.label} onClick={() => scrollToSection(item.section)} className={itemClass}>
                 {item.label}
-                <span
-                  className={`absolute -bottom-1 left-0 h-px bg-foreground transition-all duration-300 ${
-                    currentSection === item.section ? "w-full" : "w-0 group-hover:w-full"
-                  }`}
-                />
               </button>
             )
-          )}
+          })}
         </div>
 
         <div className="flex items-center gap-3">
@@ -282,7 +273,7 @@ export default function Home() {
               <span className="text-balance">
                 INSHOW
                 <br />
-                ACADEMY
+                <span className="font-normal">ACADEMY</span>
               </span>
             </h1>
             <p className="mb-8 max-w-2xl animate-in fade-in slide-in-from-bottom-4 text-xl leading-relaxed text-foreground/90 duration-1000 delay-200 md:text-2xl">

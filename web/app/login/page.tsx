@@ -69,7 +69,7 @@ function LoginContent() {
       <nav className="fixed left-0 right-0 top-0 z-50 flex items-center justify-between px-6 py-6 md:px-12">
         <Link href="/" className="flex items-center gap-3 transition-opacity hover:opacity-70">
           <ArrowLeft className="h-4 w-4" />
-          <span className="font-sans text-xl font-semibold tracking-tight">INSHOW ACADEMY</span>
+          <span className="font-sans text-xl font-semibold tracking-tight">INSHOW <span className="font-normal">ACADEMY</span></span>
         </Link>
         <div className="flex items-center gap-3">
           <ThemeToggle />

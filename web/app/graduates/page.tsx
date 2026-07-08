@@ -203,24 +203,21 @@ export default function GraduatesPage() {
       <nav className="fixed left-0 right-0 top-0 z-50 flex items-center justify-between px-6 py-6 md:px-12">
         <Link href="/" className="flex items-center gap-3 transition-opacity hover:opacity-70">
           <ArrowLeft className="h-4 w-4" />
-          <span className="font-sans text-xl font-semibold tracking-tight">INSHOW ACADEMY</span>
+          <span className="font-sans text-xl font-semibold tracking-tight">INSHOW <span className="font-normal">ACADEMY</span></span>
         </Link>
 
-        <div className="hidden items-center gap-8 md:flex">
+        <div className="hidden items-center gap-1 rounded-full border border-foreground/10 bg-background/45 p-1.5 shadow-[0_12px_40px_rgba(0,0,0,0.08)] backdrop-blur-xl md:flex">
           {navItems.map(item => (
             <Link
               key={item.label}
               href={item.href}
-              className={`group relative font-sans text-sm font-medium transition-colors ${
-                item.active ? "text-foreground" : "text-foreground/80 hover:text-foreground"
+              className={`rounded-full px-4 py-2 font-sans text-sm font-medium transition-all duration-300 ease-out ${
+                item.active
+                  ? "bg-foreground text-background shadow-[0_8px_24px_rgba(0,0,0,0.18)]"
+                  : "text-foreground/65 hover:bg-foreground/[0.06] hover:text-foreground"
               }`}
             >
               {item.label}
-              <span
-                className={`absolute -bottom-1 left-0 h-px bg-foreground transition-all duration-300 ${
-                  item.active ? "w-full" : "w-0 group-hover:w-full"
-                }`}
-              />
             </Link>
           ))}
         </div>
