@@ -1,18 +1,15 @@
 "use client"
 
-import { Mail, MapPin, X } from "lucide-react"
+import { Mail, MapPin } from "lucide-react"
 import { useReveal } from "@/hooks/use-reveal"
 import { useState, type FormEvent } from "react"
 import { MagneticButton } from "@/components/magnetic-button"
-import { ApplicationFormPanel } from "@/components/application-form"
 
-export function ContactSection() {
+export function ContactSection({ onApplyClick }: { onApplyClick?: () => void }) {
   const { ref, isVisible } = useReveal(0.3)
   const [formData, setFormData] = useState({ name: "", email: "", message: "" })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitSuccess, setSubmitSuccess] = useState(false)
-  const [isApplicationOpen, setIsApplicationOpen] = useState(false)
-  const [applicationSubmittedName, setApplicationSubmittedName] = useState("")
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -36,7 +33,6 @@ export function ContactSection() {
   }
 
   return (
-    <>
     <section
       ref={ref}
       className="flex h-screen w-screen shrink-0 snap-start items-center px-4 pt-20 md:px-12 md:pt-0 lg:px-16"
@@ -172,10 +168,7 @@ export function ContactSection() {
                   size="lg"
                   className="w-full disabled:opacity-50"
                   disabled={isSubmitting}
-                  onClick={() => {
-                    setApplicationSubmittedName("")
-                    setIsApplicationOpen(true)
-                  }}
+                  onClick={onApplyClick}
                 >
                   {isSubmitting ? "작성 중..." : "신청서 작성"}
                 </MagneticButton>
@@ -188,44 +181,5 @@ export function ContactSection() {
         </div>
       </div>
     </section>
-    {isApplicationOpen && (
-      <div className="fixed inset-0 z-[80] flex items-center justify-center bg-background/70 px-4 py-6 backdrop-blur-xl" role="dialog" aria-modal="true" aria-label="신청서 작성">
-        <button
-          type="button"
-          className="absolute inset-0 cursor-default"
-          aria-label="신청서 팝업 닫기"
-          onClick={() => setIsApplicationOpen(false)}
-        />
-        <div className="relative z-10 max-h-[88vh] w-full max-w-4xl overflow-y-auto rounded-[8px] border border-foreground/10 bg-background shadow-[0_28px_110px_rgba(0,0,0,0.22)]">
-          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-foreground/10 bg-background/95 px-5 py-4 backdrop-blur-xl">
-            <div>
-              <h2 className="text-lg font-medium tracking-tight">신청서 작성</h2>
-              <p className="mt-1 text-xs text-foreground/50">작성 후 제출하면 관리자 페이지에 접수됩니다.</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsApplicationOpen(false)}
-              className="flex h-9 w-9 items-center justify-center rounded-[8px] border border-foreground/10 text-foreground/60 transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
-              aria-label="닫기"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-          <div className="p-4 md:p-6">
-            {applicationSubmittedName ? (
-              <div className="rounded-[8px] border border-emerald-500/20 bg-emerald-500/10 p-5 text-sm text-emerald-700 dark:text-emerald-300">
-                {applicationSubmittedName}님의 신청서가 접수되었습니다. 관리자가 확인 후 연락드립니다.
-              </div>
-            ) : (
-              <ApplicationFormPanel
-                variant="bare"
-                onSubmitted={setApplicationSubmittedName}
-              />
-            )}
-          </div>
-        </div>
-      </div>
-    )}
-    </>
   )
 }

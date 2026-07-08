@@ -27,13 +27,19 @@ import {
 import { GrainOverlay } from "@/components/grain-overlay"
 import { ThemeToggle } from "@/components/theme-toggle"
 import {
+  APPLICATION_FORM_SCHEMA_KEY,
   COURSE_APPLICATIONS_KEY,
   GRADUATE_COMPANIES_KEY,
   SIGNUP_SUBMISSIONS_KEY,
+  createApplicationFormFieldId,
   createGraduateCompanyId,
   createSubmissionId,
+  defaultApplicationFormSchema,
   getMockGraduateFaceImage,
   signupStatuses,
+  type ApplicationFieldType,
+  type ApplicationFormField,
+  type ApplicationFormSchema,
   type CourseApplication,
   type GraduateCompany,
   type SignupStatus,
@@ -48,6 +54,15 @@ const statusTone: Record<SignupStatus, string> = {
   "승인 완료": "border-cyan-500/25 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300",
   "상담 필요": "border-rose-500/25 bg-rose-500/10 text-rose-700 dark:text-rose-300",
   "결제 확인": "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+}
+
+const applicationFieldTypeLabels: Record<ApplicationFieldType, string> = {
+  text: "짧은 답변",
+  email: "이메일",
+  tel: "연락처",
+  select: "선택형",
+  checkbox: "체크박스",
+  textarea: "긴 답변",
 }
 
 function formatDate(value: string) {
@@ -89,6 +104,66 @@ function readCourseApplications() {
   }
 }
 
+function readApplicationFormSchema() {
+  try {
+    const saved = window.localStorage.getItem(APPLICATION_FORM_SCHEMA_KEY)
+    if (!saved) return defaultApplicationFormSchema
+
+    const parsed = JSON.parse(saved) as ApplicationFormSchema
+    return {
+      title: parsed.title || defaultApplicationFormSchema.title,
+      description: parsed.description || defaultApplicationFormSchema.description,
+      fields: Array.isArray(parsed.fields) && parsed.fields.length ? parsed.fields : defaultApplicationFormSchema.fields,
+    }
+  } catch {
+    return defaultApplicationFormSchema
+  }
+}
+
+function parseFieldOptions(value: FormDataEntryValue | null) {
+  return String(value ?? "")
+    .split(",")
+    .map(option => option.trim())
+    .filter(Boolean)
+}
+
+function formatApplicationAnswer(value: string | string[] | undefined) {
+  if (Array.isArray(value)) return value.length ? value.join(", ") : "-"
+  return value || "-"
+}
+
+function getLegacyApplicationAnswer(application: CourseApplication, fieldId: string) {
+  const legacyAnswers: Record<string, string | string[]> = {
+    name: application.name,
+    phone: application.phone,
+    email: application.email,
+    company: application.company,
+    role: application.role,
+    experience: application.experience,
+    preferredBatch: application.preferredBatch,
+    attendanceType: application.attendanceType,
+    interestedWorks: application.interestedWorks,
+    purpose: application.purpose,
+    question: application.question,
+  }
+
+  return legacyAnswers[fieldId]
+}
+
+function getApplicationDisplayFields(application: CourseApplication, schemaFields: ApplicationFormField[]) {
+  const schemaFieldIds = new Set(schemaFields.map(field => field.id))
+  const extraFields = Object.keys(application.answers ?? {})
+    .filter(fieldId => !schemaFieldIds.has(fieldId))
+    .map<ApplicationFormField>(fieldId => ({
+      id: fieldId,
+      label: fieldId,
+      type: Array.isArray(application.answers?.[fieldId]) ? "checkbox" : "text",
+      required: false,
+    }))
+
+  return [...schemaFields, ...extraFields]
+}
+
 function readFileAsDataUrl(file: File) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader()
@@ -104,6 +179,7 @@ export default function AdminPage() {
   const [isAuthorized, setIsAuthorized] = useState(false)
   const [records, setRecords] = useState<SignupSubmission[]>([])
   const [applications, setApplications] = useState<CourseApplication[]>([])
+  const [applicationFormSchema, setApplicationFormSchema] = useState<ApplicationFormSchema>(defaultApplicationFormSchema)
   const [graduateCompanies, setGraduateCompanies] = useState<GraduateCompany[]>([])
   const [query, setQuery] = useState("")
 
@@ -124,6 +200,7 @@ export default function AdminPage() {
 
     setRecords(readSubmissions())
     setApplications(readCourseApplications())
+    setApplicationFormSchema(readApplicationFormSchema())
     setGraduateCompanies(readGraduateCompanies())
     setIsAuthorized(true)
     setIsReady(true)
@@ -138,6 +215,11 @@ export default function AdminPage() {
     if (!isReady || !isAuthorized) return
     window.localStorage.setItem(COURSE_APPLICATIONS_KEY, JSON.stringify(applications))
   }, [applications, isReady, isAuthorized])
+
+  useEffect(() => {
+    if (!isReady || !isAuthorized) return
+    window.localStorage.setItem(APPLICATION_FORM_SCHEMA_KEY, JSON.stringify(applicationFormSchema))
+  }, [applicationFormSchema, isReady, isAuthorized])
 
   useEffect(() => {
     if (!isReady || !isAuthorized) return
@@ -226,7 +308,8 @@ export default function AdminPage() {
         application.preferredBatch,
         application.attendanceType,
         application.status,
-        application.interestedWorks.join(" "),
+        (application.interestedWorks ?? []).join(" "),
+        ...Object.values(application.answers ?? {}).map(answer => formatApplicationAnswer(answer)),
       ]
         .join(" ")
         .toLowerCase()
@@ -256,6 +339,47 @@ export default function AdminPage() {
 
   const deleteApplication = (id: string) => {
     setApplications(prev => prev.filter(application => application.id !== id))
+  }
+
+  const updateApplicationFormMeta = (patch: Partial<Pick<ApplicationFormSchema, "title" | "description">>) => {
+    setApplicationFormSchema(prev => ({ ...prev, ...patch }))
+  }
+
+  const updateApplicationField = (id: string, patch: Partial<ApplicationFormField>) => {
+    setApplicationFormSchema(prev => ({
+      ...prev,
+      fields: prev.fields.map(field => (field.id === id ? { ...field, ...patch } : field)),
+    }))
+  }
+
+  const deleteApplicationField = (id: string) => {
+    setApplicationFormSchema(prev => ({
+      ...prev,
+      fields: prev.fields.filter(field => field.id !== id),
+    }))
+  }
+
+  const handleApplicationFieldAdd = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const form = event.currentTarget
+    const formData = new FormData(form)
+    const label = String(formData.get("label") ?? "").trim()
+    const type = String(formData.get("type") ?? "text") as ApplicationFieldType
+    const options = parseFieldOptions(formData.get("options"))
+
+    if (!label) return
+
+    const field: ApplicationFormField = {
+      id: createApplicationFormFieldId(),
+      label,
+      type,
+      required: formData.get("required") === "on",
+      placeholder: String(formData.get("placeholder") ?? "").trim(),
+      options: type === "select" || type === "checkbox" ? (options.length ? options : ["옵션 1"]) : undefined,
+    }
+
+    setApplicationFormSchema(prev => ({ ...prev, fields: [...prev.fields, field] }))
+    form.reset()
   }
 
   const deleteGraduateCompany = (id: string) => {
@@ -454,6 +578,140 @@ export default function AdminPage() {
           <section className="mb-6 rounded-[8px] border border-foreground/10 bg-background/[0.76] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.07)] backdrop-blur-xl">
             <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
               <div>
+                <h2 className="font-medium">신청서 양식 관리</h2>
+                <p className="mt-1 text-sm text-foreground/50">공개 페이지와 팝업 신청서에 표시될 항목을 수정합니다.</p>
+              </div>
+              <span className="font-mono text-xs text-foreground/45">{applicationFormSchema.fields.length} fields</span>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
+              <div className="grid gap-3 rounded-[8px] border border-foreground/[0.08] bg-foreground/[0.025] p-4">
+                <label className="grid gap-2">
+                  <span className="font-mono text-xs text-foreground/55">신청서 제목</span>
+                  <input
+                    value={applicationFormSchema.title}
+                    onChange={event => updateApplicationFormMeta({ title: event.currentTarget.value })}
+                    className="h-10 rounded-[8px] border border-foreground/10 bg-transparent px-3 text-sm outline-none placeholder:text-foreground/35"
+                  />
+                </label>
+                <label className="grid gap-2">
+                  <span className="font-mono text-xs text-foreground/55">신청서 설명</span>
+                  <textarea
+                    value={applicationFormSchema.description}
+                    onChange={event => updateApplicationFormMeta({ description: event.currentTarget.value })}
+                    rows={4}
+                    className="resize-none rounded-[8px] border border-foreground/10 bg-transparent px-3 py-2 text-sm outline-none placeholder:text-foreground/35"
+                  />
+                </label>
+
+                <form onSubmit={handleApplicationFieldAdd} className="mt-2 grid gap-3 border-t border-foreground/10 pt-4">
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <Plus className="h-4 w-4" />
+                    항목 추가
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <input name="label" required placeholder="항목명 예: 희망 상담 시간" className="h-10 rounded-[8px] border border-foreground/10 bg-transparent px-3 text-sm outline-none placeholder:text-foreground/35" />
+                    <select name="type" defaultValue="text" className="h-10 rounded-[8px] border border-foreground/10 bg-background px-3 text-sm outline-none">
+                      {Object.entries(applicationFieldTypeLabels).map(([type, label]) => (
+                        <option key={type} value={type}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <input name="placeholder" placeholder="입력 안내 문구" className="h-10 rounded-[8px] border border-foreground/10 bg-transparent px-3 text-sm outline-none placeholder:text-foreground/35" />
+                  <input name="options" placeholder="선택형/체크박스 옵션, 쉼표로 구분" className="h-10 rounded-[8px] border border-foreground/10 bg-transparent px-3 text-sm outline-none placeholder:text-foreground/35" />
+                  <label className="flex h-10 items-center gap-2 text-sm text-foreground/65">
+                    <input name="required" type="checkbox" className="h-4 w-4 accent-foreground" />
+                    필수 항목
+                  </label>
+                  <button type="submit" className="flex h-10 items-center justify-center gap-2 rounded-[8px] bg-foreground text-sm font-medium text-background">
+                    <Plus className="h-4 w-4" />
+                    항목 추가
+                  </button>
+                </form>
+              </div>
+
+              <div className="grid max-h-[560px] gap-3 overflow-y-auto pr-1">
+                {applicationFormSchema.fields.map(field => (
+                  <article key={field.id} className="rounded-[8px] border border-foreground/[0.08] bg-foreground/[0.025] p-4">
+                    <div className="mb-3 flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-medium">{field.label || "이름 없는 항목"}</p>
+                        <p className="mt-1 font-mono text-[11px] text-foreground/40">{field.id}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => deleteApplicationField(field.id)}
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] text-foreground/45 transition-colors hover:bg-rose-500/10 hover:text-rose-600"
+                        aria-label={`${field.label} 항목 삭제`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <input
+                        value={field.label}
+                        onChange={event => updateApplicationField(field.id, { label: event.currentTarget.value })}
+                        className="h-10 rounded-[8px] border border-foreground/10 bg-transparent px-3 text-sm outline-none placeholder:text-foreground/35"
+                        placeholder="항목명"
+                      />
+                      <select
+                        value={field.type}
+                        onChange={event => {
+                          const nextType = event.currentTarget.value as ApplicationFieldType
+                          updateApplicationField(field.id, {
+                            type: nextType,
+                            options:
+                              nextType === "select" || nextType === "checkbox"
+                                ? field.options?.length
+                                  ? field.options
+                                  : ["옵션 1"]
+                                : undefined,
+                          })
+                        }}
+                        className="h-10 rounded-[8px] border border-foreground/10 bg-background px-3 text-sm outline-none"
+                      >
+                        {Object.entries(applicationFieldTypeLabels).map(([type, label]) => (
+                          <option key={type} value={type}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        value={field.placeholder ?? ""}
+                        onChange={event => updateApplicationField(field.id, { placeholder: event.currentTarget.value })}
+                        className="h-10 rounded-[8px] border border-foreground/10 bg-transparent px-3 text-sm outline-none placeholder:text-foreground/35 md:col-span-2"
+                        placeholder="입력 안내 문구"
+                      />
+                      {(field.type === "select" || field.type === "checkbox") && (
+                        <input
+                          value={(field.options ?? []).join(", ")}
+                          onChange={event => updateApplicationField(field.id, { options: parseFieldOptions(event.currentTarget.value) })}
+                          className="h-10 rounded-[8px] border border-foreground/10 bg-transparent px-3 text-sm outline-none placeholder:text-foreground/35 md:col-span-2"
+                          placeholder="옵션을 쉼표로 구분"
+                        />
+                      )}
+                      <label className="flex h-10 items-center gap-2 text-sm text-foreground/65">
+                        <input
+                          type="checkbox"
+                          checked={field.required}
+                          onChange={event => updateApplicationField(field.id, { required: event.currentTarget.checked })}
+                          className="h-4 w-4 accent-foreground"
+                        />
+                        필수 항목
+                      </label>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          <section className="mb-6 rounded-[8px] border border-foreground/10 bg-background/[0.76] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.07)] backdrop-blur-xl">
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+              <div>
                 <h2 className="font-medium">과정 신청서 접수</h2>
                 <p className="mt-1 text-sm text-foreground/50">기초 공정 초격차 3주 과정 신청서 제출 내역입니다.</p>
               </div>
@@ -498,15 +756,14 @@ export default function AdminPage() {
                   </div>
 
                   <div className="grid gap-4 text-sm md:grid-cols-4">
-                    <InfoBlock label="연락처" value={application.phone} />
-                    <InfoBlock label="이메일" value={application.email || "-"} />
-                    <InfoBlock label="회사/상호" value={application.company || "-"} />
-                    <InfoBlock label="직무/경력" value={`${application.role || "-"} · ${application.experience || "-"}`} />
-                    <InfoBlock label="희망 기수" value={application.preferredBatch} />
-                    <InfoBlock label="수강 방식" value={application.attendanceType} />
-                    <InfoBlock label="관심 공정" value={application.interestedWorks.join(", ")} wide />
-                    <InfoBlock label="수강 목적" value={application.purpose || "-"} wide />
-                    <InfoBlock label="문의" value={application.question || "-"} wide />
+                    {getApplicationDisplayFields(application, applicationFormSchema.fields).map(field => (
+                      <InfoBlock
+                        key={field.id}
+                        label={field.label}
+                        value={formatApplicationAnswer(application.answers?.[field.id] ?? getLegacyApplicationAnswer(application, field.id))}
+                        wide={field.type === "textarea" || field.type === "checkbox"}
+                      />
+                    ))}
                   </div>
                 </article>
               ))}

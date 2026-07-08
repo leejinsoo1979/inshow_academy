@@ -3,7 +3,13 @@
 import { MagneticButton } from "@/components/magnetic-button"
 import { useReveal } from "@/hooks/use-reveal"
 
-export function AboutSection({ scrollToSection }: { scrollToSection?: (index: number) => void }) {
+export function AboutSection({
+  scrollToSection,
+  onApplyClick,
+}: {
+  scrollToSection?: (index: number) => void
+  onApplyClick?: () => void
+}) {
   const { ref, isVisible } = useReveal(0.3)
 
   return (
@@ -86,7 +92,7 @@ export function AboutSection({ scrollToSection }: { scrollToSection?: (index: nu
           }`}
           style={{ transitionDelay: "750ms" }}
         >
-          <MagneticButton size="lg" variant="primary" onClick={() => scrollToSection?.(4)}>
+          <MagneticButton size="lg" variant="primary" onClick={onApplyClick}>
             수강신청
           </MagneticButton>
           <MagneticButton size="lg" variant="secondary" onClick={() => scrollToSection?.(1)}>

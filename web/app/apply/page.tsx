@@ -4,13 +4,12 @@ import type { ReactNode } from "react"
 import { useState } from "react"
 import Link from "next/link"
 import { ArrowLeft, BriefcaseBusiness, CheckCircle2, Clock3 } from "lucide-react"
-import { ApplicationFormPanel, useApplicationFormSchema } from "@/components/application-form"
+import { ApplicationFormPanel } from "@/components/application-form"
 import { AuthLinks } from "@/components/auth-links"
 import { GrainOverlay } from "@/components/grain-overlay"
 import { ThemeToggle } from "@/components/theme-toggle"
 
 export default function ApplyPage() {
-  const schema = useApplicationFormSchema()
   const [submittedName, setSubmittedName] = useState("")
 
   return (
@@ -30,14 +29,6 @@ export default function ApplyPage() {
 
       <section className="relative z-10 mx-auto grid min-h-screen w-full max-w-7xl gap-8 px-6 py-28 md:px-12 lg:grid-cols-[0.82fr_1.18fr] lg:items-center">
         <aside className="grid content-center gap-6">
-          <div>
-            <p className="mb-4 inline-flex rounded-full border border-foreground/10 bg-foreground/[0.04] px-4 py-1.5 font-mono text-xs uppercase tracking-[0.24em] text-foreground/55">
-              Course Application
-            </p>
-            <h1 className="max-w-xl text-4xl font-semibold leading-[1.05] tracking-tight md:text-6xl">{schema.title}</h1>
-            <p className="mt-5 max-w-lg text-base leading-relaxed text-foreground/62 md:text-lg">{schema.description}</p>
-          </div>
-
           <div className="grid gap-3 sm:grid-cols-3 lg:max-w-xl">
             <InfoTile icon={<Clock3 className="h-4 w-4" />} label="기간" value="3주" />
             <InfoTile icon={<BriefcaseBusiness className="h-4 w-4" />} label="대상" value="실무자" />
