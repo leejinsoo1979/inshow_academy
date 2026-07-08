@@ -239,7 +239,7 @@ export default function Home() {
             ) : (
               <button
                 key={item.label}
-                onClick={() => (item.section === 4 ? openApplicationModal() : scrollToSection(item.section))}
+                onClick={() => scrollToSection(item.section)}
                 className={`group relative font-sans text-sm font-medium transition-colors ${
                   currentSection === item.section ? "text-foreground" : "text-foreground/80 hover:text-foreground"
                 }`}
@@ -292,7 +292,7 @@ export default function Home() {
               </span>
             </p>
             <div className="pointer-events-auto flex animate-in fade-in slide-in-from-bottom-4 flex-col gap-4 duration-1000 delay-300 sm:flex-row sm:items-center">
-              <MagneticButton size="lg" variant="primary" onClick={openApplicationModal}>
+              <MagneticButton size="lg" variant="primary" onClick={() => scrollToSection(4)}>
                 수강신청
               </MagneticButton>
               <MagneticButton size="lg" variant="secondary" onClick={() => scrollToSection(2)}>
@@ -376,7 +376,7 @@ export default function Home() {
 
         <WorkSection />
         <ServicesSection />
-        <AboutSection scrollToSection={scrollToSection} onApplyClick={openApplicationModal} />
+        <AboutSection scrollToSection={scrollToSection} />
         <ContactSection onApplyClick={openApplicationModal} />
       </div>
 
