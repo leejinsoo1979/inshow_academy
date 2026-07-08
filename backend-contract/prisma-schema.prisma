@@ -1,0 +1,124 @@
+// INSHOW ACADEMY Prisma schema draft
+// 실제 개발 시 DB 정책, 인덱스, enum, cascade 규칙을 백엔드팀과 확정하세요.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole { user admin super_admin }
+enum CourseStatus { draft published closed archived }
+enum OrderStatus { pending paid failed cancelled refunded partial_refunded }
+enum EnrollmentStatus { pending_payment confirmed cancelled completed }
+enum PaymentStatus { ready approved failed cancelled refunded partial_refunded }
+
+model User {
+  id           String   @id @default(cuid())
+  role         UserRole @default(user)
+  name         String
+  email        String   @unique
+  phone        String?
+  passwordHash String?
+  provider     String?
+  providerId   String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  orders       Order[]
+  enrollments  Enrollment[]
+}
+
+model Course {
+  id          String       @id @default(cuid())
+  slug        String       @unique
+  title       String
+  subtitle    String?
+  category    String
+  level       String
+  price       Int
+  status      CourseStatus @default(draft)
+  thumbnailUrl String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  sessions    CourseSession[]
+  curriculum  CurriculumItem[]
+}
+
+model CourseSession {
+  id            String   @id @default(cuid())
+  courseId      String
+  course        Course   @relation(fields: [courseId], references: [id])
+  startsAt      DateTime
+  endsAt        DateTime
+  locationType  String
+  locationText  String?
+  capacity      Int
+  enrolledCount Int      @default(0)
+  enrollments   Enrollment[]
+}
+
+model CurriculumItem {
+  id          String @id @default(cuid())
+  courseId    String
+  course      Course @relation(fields: [courseId], references: [id])
+  weekNo      Int
+  title       String
+  description String?
+}
+
+model Order {
+  id             String      @id @default(cuid())
+  orderNo        String      @unique
+  userId         String
+  user           User        @relation(fields: [userId], references: [id])
+  originalAmount Int
+  discountAmount Int         @default(0)
+  finalAmount    Int
+  status         OrderStatus @default(pending)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  payment        Payment?
+  enrollments    Enrollment[]
+  refunds        Refund[]
+}
+
+model Enrollment {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id])
+  sessionId String
+  session   CourseSession    @relation(fields: [sessionId], references: [id])
+  orderId   String
+  order     Order            @relation(fields: [orderId], references: [id])
+  status    EnrollmentStatus @default(pending_payment)
+  createdAt DateTime         @default(now())
+}
+
+model Payment {
+  id         String        @id @default(cuid())
+  orderId    String        @unique
+  order      Order         @relation(fields: [orderId], references: [id])
+  provider   String
+  paymentKey String?       @unique
+  method     String?
+  amount     Int
+  status     PaymentStatus @default(ready)
+  approvedAt DateTime?
+  rawPayload  Json?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Refund {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id])
+  amount    Int
+  reason    String?
+  status    String   @default("requested")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

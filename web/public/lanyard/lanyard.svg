@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="250" viewBox="0 0 1024 250">
+  <rect width="1024" height="250" fill="#000"/>
+  <text
+    x="512"
+    y="132"
+    transform="rotate(180 512 125)"
+    fill="#fff"
+    font-family="Inter, Arial, Helvetica, sans-serif"
+    font-size="68"
+    font-weight="800"
+    letter-spacing="18"
+    text-anchor="middle"
+    dominant-baseline="middle"
+  >INSHOW ACADEMY</text>
+</svg>

@@ -1,0 +1,11 @@
+erDiagram
+  USERS ||--o{ ORDERS : creates
+  USERS ||--o{ ENROLLMENTS : owns
+  COURSES ||--o{ COURSE_SESSIONS : has
+  COURSES ||--o{ CURRICULUM_ITEMS : has
+  COURSE_SESSIONS ||--o{ ENROLLMENTS : receives
+  ORDERS ||--|| PAYMENTS : has
+  ORDERS ||--o{ REFUNDS : may_have
+  ORDERS ||--o{ ENROLLMENTS : confirms
+  COURSES ||--o{ REVIEWS : receives
+  COURSES ||--o{ ATTACHMENTS : provides

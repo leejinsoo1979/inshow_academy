@@ -1,0 +1,20 @@
+sequenceDiagram
+  participant U as User
+  participant FE as React Frontend
+  participant API as Backend API
+  participant PG as Payment Gateway
+  participant DB as Database
+
+  U->>FE: 강의 선택 및 신청 정보 입력
+  FE->>API: POST /api/orders
+  API->>DB: 주문 pending 생성
+  API-->>FE: orderId, amount, orderName
+  FE->>PG: 결제창 호출
+  PG-->>FE: successUrl(paymentKey, orderId, amount)
+  FE->>API: POST /api/payments/confirm
+  API->>DB: 주문 금액/상태 조회
+  API->>PG: 결제 승인 API 호출
+  PG-->>API: 승인 결과
+  API->>DB: orders paid, payments approved, enrollment confirmed
+  API-->>FE: 신청 완료
+  FE-->>U: 완료 화면 표시
