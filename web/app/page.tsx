@@ -7,6 +7,7 @@ import { AboutSection } from "@/components/sections/about-section"
 import { ContactSection } from "@/components/sections/contact-section"
 import { MagneticButton } from "@/components/magnetic-button"
 import { ThemeToggle } from "@/components/theme-toggle"
+import Link from "next/link"
 import { useRef, useEffect, useState } from "react"
 import dynamic from "next/dynamic"
 
@@ -217,9 +218,12 @@ export default function Home() {
 
         <div className="flex items-center gap-3">
           <ThemeToggle />
-          <MagneticButton variant="secondary" onClick={() => scrollToSection(4)}>
-            수강신청
-          </MagneticButton>
+          <Link
+            href="/signup"
+            className="relative overflow-hidden rounded-full border border-foreground/10 bg-foreground/5 px-6 py-2.5 text-sm font-medium text-foreground backdrop-blur-xl transition-all duration-300 ease-out hover:border-foreground/20 hover:bg-foreground/10"
+          >
+            회원가입
+          </Link>
         </div>
       </nav>
 

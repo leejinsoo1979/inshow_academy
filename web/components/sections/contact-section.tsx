@@ -55,7 +55,7 @@ export function ContactSection() {
 
             <div className="space-y-4 md:space-y-8">
               <a
-                href="mailto:admin@inshow-academy.com"
+                href="mailto:contact@interiorshow.kr"
                 className={`group block transition-all duration-700 ${
                   isVisible ? "translate-x-0 opacity-100" : "-translate-x-16 opacity-0"
                 }`}
@@ -66,7 +66,7 @@ export function ContactSection() {
                   <span className="font-mono text-xs text-foreground/60">이메일</span>
                 </div>
                 <p className="text-base text-foreground transition-colors group-hover:text-foreground/70 md:text-2xl">
-                  admin@inshow-academy.com
+                  contact@interiorshow.kr
                 </p>
               </a>
 
@@ -80,7 +80,7 @@ export function ContactSection() {
                   <MapPin className="h-3 w-3 text-foreground/60" />
                   <span className="font-mono text-xs text-foreground/60">위치</span>
                 </div>
-                <p className="text-base text-foreground md:text-2xl">서울 · 온라인 라이브</p>
+                <p className="text-base text-foreground md:text-2xl">서울시 송파구 송파대로 222, 2F 인쇼아카데미</p>
               </div>
 
               <div
