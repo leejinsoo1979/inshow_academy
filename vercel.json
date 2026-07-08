@@ -1,0 +1,4 @@
+{
+  "installCommand": "npx pnpm@10.28.2 install --frozen-lockfile && npx pnpm@10.28.2 --dir web install --frozen-lockfile",
+  "buildCommand": "npx pnpm@10.28.2 --dir web build && rm -rf .next && cp -R web/.next .next"
+}
